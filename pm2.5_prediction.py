@@ -72,26 +72,7 @@ def get_all_data():
 
 
 today = int(dt.datetime.now().strftime("%d"))
-#%% get wind speed and direction data
-wind_data_list = []
 
-for month in range(6, 9):
-    max_day = 32
-    if month == 6:
-        max_day = 31
-    if month == 8:
-        # max_day = today-1
-        max_day = 8
-    for day in range(1, max_day):        
-        wind_day = wind.crawler(month, day)
-        for hour in wind_day:
-            wind_data_list.append(hour)
-
-    print("Finish "+ str(month))
-
-#%%
-title = ['month', 'day', 'hour', 'speed']
-df_wind = pd.DataFrame(data=wind_data_list, columns=title)
 #%%
 pos5 = get_data_by_pos(5)
 
@@ -136,9 +117,49 @@ df5mean = df5.groupby(['month', 'day', 'hour']).mean()
 df5mean.reset_index(inplace=True)
 
 #%%
-
+max_day = 30
+count = 1
+lost_day = []
+for index, rows in df5mean.iterrows():
+    if rows['day'] != count:        
+        if rows['day'] == (count + 1):
+            count = rows['day']
+        elif rows['day'] < count:            
+            print(rows['day'], count)
+            count = 1
+            while count != rows['day']:
+                lost_day.append(count)
+                count += 1
+            count = rows['day']
+        else:
+            print(rows['day'], count)
+            while count != rows['day']:
+                lost_day.append(count)
+                count += 1
+            count = rows['day']       
+        
+        
     
+#%% get wind speed and direction data
+wind_data_list = []
 
+for month in range(6, 9):
+    max_day = 32
+    if month == 6:
+        max_day = 31
+    if month == 8:
+        # max_day = today-1
+        max_day = 8
+    for day in range(1, max_day):        
+        wind_day = wind.crawler(month, day)
+        for hour in wind_day:
+            wind_data_list.append(hour)
+
+    print("Finish "+ str(month))
+
+#%%
+title = ['month', 'day', 'hour', 'speed']
+df_wind = pd.DataFrame(data=wind_data_list, columns=title)
 #%%
 # Reconstruct time infomation by `month`, `day`, and `hour`
 
