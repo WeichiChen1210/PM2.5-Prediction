@@ -38,7 +38,7 @@ def crawler(month, date):
     # html parsing
     soup = BeautifulSoup(response.text, features="html.parser")
     
-    title = ['WS', 'WD']
+#    title = ['WS', 'WD']
     
     # get the daily data
     body = soup.tbody
@@ -46,22 +46,26 @@ def crawler(month, date):
     trs = trs[3:]
     
     winddata = []
+    hour = 0
     # extract wind speed and wind direction
     for tds in trs:
-        sd = []
+        sd = {}
         td = tds.find_all('td')
 #        print(td[0].string)
 #        print(td[6].string)
 #        print(td[7].string)
 #        print('---')
-        if td[7].string == "V\xa0":
-            td[7].string = "0"
-        
-        sd.append(float(td[6].string))
-        sd.append(int(td[7].string))
+#        if td[7].string == "V\xa0":
+#            td[7].string = "0"
+        sd['month'] = month
+        sd['day'] = date
+        sd['hour'] = hour
+        sd['speed'] = float(td[6].string)
+#        sd.append(int(td[7].string))
         winddata.append(sd)
+        hour += 1
     
     # turn the list to dataframe
-    df = pd.DataFrame(data=winddata, columns=title)
+    #df = pd.DataFrame(data=winddata, columns=title)
     
-    return df
+    return winddata

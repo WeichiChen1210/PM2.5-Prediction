@@ -81,13 +81,17 @@ for month in range(6, 9):
         max_day = 31
     if month == 8:
         # max_day = today-1
-        max_day = 7
+        max_day = 8
     for day in range(1, max_day):        
-        df = wind.crawler(month, day)
-        wind_data_list.append(df)
+        wind_day = wind.crawler(month, day)
+        for hour in wind_day:
+            wind_data_list.append(hour)
 
     print("Finish "+ str(month))
 
+#%%
+title = ['month', 'day', 'hour', 'speed']
+df_wind = pd.DataFrame(data=wind_data_list, columns=title)
 #%%
 pos5 = get_data_by_pos(5)
 
@@ -95,7 +99,7 @@ pos5 = get_data_by_pos(5)
 df5 = pd.DataFrame(pos5)
 
 # Input time
-time = ['2019 06 01', '2019 08 07']
+time = ['2019 06 01', '2019 08 08']
 taipei_tz = pytz.timezone('Asia/Taipei')
 
 # Set time
@@ -105,6 +109,7 @@ end_time = dt.datetime.strptime(time[1], '%Y %m %d').replace(tzinfo=taipei_tz)
 # Select the duration
 df5 = df5.loc[df5['date'] >= start_time]
 df5 = df5.loc[df5['date'] <= end_time]
+df5 = df5[1:]
 #%%
 # Rename the names of columns
 df5 = df5.rename(columns = {'pm10': 'pm1.0', 'pm25': 'pm2.5', 'pm100': 'pm10.0'})
@@ -123,4 +128,41 @@ df5['hour_minute'] = df5['date'].apply(lambda x: x.hour+x.minute/60)
 
 #%%
 df5 = df5[['month', 'day', 'weekday', 'hour', 'hour_minute', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity']]
+
+#%%
+# Evaluate mean values for each hour
+df5mean = df5.groupby(['month', 'day', 'hour']).mean()
+#%%
+df5mean.reset_index(inplace=True)
+
+#%%
+
+    
+
+#%%
+# Reconstruct time infomation by `month`, `day`, and `hour`
+
+def get_time(x):
+    time_str = '2019 %d %d %d' % (x[0], x[1], x[2])
+    taipei_tz = pytz.timezone('Asia/Taipei')
+    time = dt.datetime.strptime(time_str, '%Y %m %d %H').replace(tzinfo=taipei_tz)
+    return time
+
+df5mean['time'] = df5mean[['month', 'day', 'hour']].apply(get_time, axis=1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
