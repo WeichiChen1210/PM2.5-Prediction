@@ -5,6 +5,7 @@ Created on Thu Aug  8 22:57:54 2019
 
 @author: weichi
 """
+import os
 import datetime as dt
 import wind_data_crawler as wind
 import requests
@@ -71,14 +72,13 @@ def get_all_data():
     return data
 
 
-today = int(dt.datetime.now().strftime("%d"))
+#today = int(dt.datetime.now().strftime("%d"))
 
-#%%
+#%% get data
 pos5 = get_data_by_pos(5)
 
-#%%
 df5 = pd.DataFrame(pos5)
-
+#%%
 # Input time
 time = ['2019 06 01', '2019 08 08']
 taipei_tz = pytz.timezone('Asia/Taipei')
@@ -116,31 +116,49 @@ df5mean = df5.groupby(['month', 'day', 'hour']).mean()
 #%%
 df5mean.reset_index(inplace=True)
 
-#%%
-max_day = 30
+df5mean.to_csv('pos5.csv')
+#%% Find the lost days
 count = 1
-lost_day = []
+count_hour = 0
+lost_day = {'6': [], '7': [], '8': []}
+temp_list = []
 for index, rows in df5mean.iterrows():
-    if rows['day'] != count:        
-        if rows['day'] == (count + 1):
-            count = rows['day']
-        elif rows['day'] < count:            
-            print(rows['day'], count)
+    month = rows['month']
+    day = rows['day']
+    hour = rows['hour']
+    if day != count:        
+        if day == (count + 1):
+            count = day
+        elif day < count:            
+            # print(day, count)
             count = 1
-            while count != rows['day']:
-                lost_day.append(count)
+            while count != day:
+                temp_list.append(count)
                 count += 1
-            count = rows['day']
+            tmp = str(int(month))
+            lost_day[tmp] += temp_list
+            temp_list.clear()
+            count = day
         else:
-            print(rows['day'], count)
-            while count != rows['day']:
-                lost_day.append(count)
+            # print(day, count)
+            count += 1
+            while count != day:
+                temp_list.append(count)
                 count += 1
-            count = rows['day']       
+            tmp = str(int(month))
+            lost_day[tmp] += temp_list
+            temp_list.clear()
+            count = day     
         
+    if hour != count_hour:
         
-    
-#%% get wind speed and direction data
+        print(month, day, hour)
+        count_hour = hour + 1
+    else:
+        count_hour += 1
+    if count_hour > 23:
+        count_hour = 0
+#%% get wind speed and direction data without lost days
 wind_data_list = []
 
 for month in range(6, 9):
@@ -148,28 +166,45 @@ for month in range(6, 9):
     if month == 6:
         max_day = 31
     if month == 8:
-        # max_day = today-1
         max_day = 8
-    for day in range(1, max_day):        
+    month_str = str(month)
+    for day in range(1, max_day):
+        # if the day is missing, ignore
+        if day in lost_day[month_str]:
+            continue        
         wind_day = wind.crawler(month, day)
         for hour in wind_day:
             wind_data_list.append(hour)
 
     print("Finish "+ str(month))
 
-#%%
+#%% rename colomn names
 title = ['month', 'day', 'hour', 'speed']
-df_wind = pd.DataFrame(data=wind_data_list, columns=title)
-#%%
-# Reconstruct time infomation by `month`, `day`, and `hour`
+df_org_wind = pd.DataFrame(data=wind_data_list, columns=title)
+#%% save original data and make a copy
+df_org_wind.to_csv('complete_wind.csv')
+df_wind = df_org_wind.copy()
 
-def get_time(x):
-    time_str = '2019 %d %d %d' % (x[0], x[1], x[2])
-    taipei_tz = pytz.timezone('Asia/Taipei')
-    time = dt.datetime.strptime(time_str, '%Y %m %d %H').replace(tzinfo=taipei_tz)
-    return time
+#%% delete extra data
+for i in range(139, 161):
+    df_wind = df_wind.drop(i)
 
-df5mean['time'] = df5mean[['month', 'day', 'hour']].apply(get_time, axis=1)
+del_list = [384, 385, 388, 399]
+for i in del_list:
+    df_wind = df_wind.drop(i)
+#%% reset index of wind data and save to csv
+df_wind.reset_index(inplace=True, drop=True)
+
+df_wind.to_csv('wind.csv')
+
+#%% read data from saved file
+df5mean = pd.read_csv('pos5.csv', index_col=0)
+
+df_wind = pd.read_csv('wind.csv', index_col=0)
+df_wind = df_wind.drop(['month', 'day', 'hour'], axis=1)
+
+#%% concate the two frames
+df5mean = pd.concat([df5mean, df_wind], axis=1, sort=False)
 
 
 
