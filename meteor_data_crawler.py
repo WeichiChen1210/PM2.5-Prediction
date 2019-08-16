@@ -7,10 +7,9 @@ Created on Wed Aug  7 23:44:39 2019
 """
 import requests as rq
 from bs4 import BeautifulSoup
-import pandas as pd
 
 station = str(467410)
-
+#%%
 def crawler(month, date):
     # create url
     
