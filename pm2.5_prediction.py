@@ -6,7 +6,6 @@ Created on Thu Aug  8 22:57:54 2019
 @author: weichi
 """
 import datetime as dt
-import requests
 import json
 import pytz
 import numpy as np
@@ -84,10 +83,6 @@ df5mean[['pm2.5_shift-1']] = df5mean[['pm2.5']].shift(-1)
 df5mean[['time_shift-1']] = df5mean[['time']].shift(-1)
 
 #%%
-
-df5mean.head()
-
-#%%
 # check the next row is the next hour or not. 
 # If it is not, the `pm2.5_next_hour` column will be given NaN.
 
@@ -96,13 +91,8 @@ def check_next_hour(x):
     if x[2] - x[1] == one_hour:
         return x[0]
     return np.nan
-
-df5mean['pm2.5_next_hour'] = df5mean[['pm2.5_shift-1', 'time', 'time_shift-1']].apply(check_next_hour, axis=1)
-
-
 #%%
-
-df5mean.head()
+df5mean['pm2.5_next_hour'] = df5mean[['pm2.5_shift-1', 'time', 'time_shift-1']].apply(check_next_hour, axis=1)
 
 #%%
 
@@ -112,14 +102,11 @@ df5mean.isna().sum()
 # Discard rows that contain NaN value
 df5mean.dropna(inplace=True)
 
-#%%
-
-df5mean.isna().sum()
+df5mean.isna().any()
 #%%
 # ### Normalization
 # 
-# $z = \frac{x- \mu}{\sigma}$
-# 
+# $z = \frac{x- \mu}{\sigma}$ 
 
 # Save time infomation in another df, and discard it
 df5mean_time = df5mean['time_shift-1']
@@ -129,9 +116,7 @@ df5mean = (df5mean - df5mean.mean()) / df5mean.std()
 
 #%%
 # Divid training set and test set
-four_fifth_len = len(df5mean)*0.8
-four_fifth_len = int(four_fifth_len)
-
+four_fifth_len = int(len(df5mean)*0.8)
 
 #%%
 
@@ -141,15 +126,15 @@ test_df = df5mean[four_fifth_len:]
 test_df_time = df5mean_time[four_fifth_len:]
 
 #%%
-column = ['month', 'day', 'hour', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']
-X = train_df[column]
+# column = ['month', 'day', 'hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']
+X = train_df[['month', 'day', 'hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']]
 #X = train_df[['month', 'day', 'weekday', 'hour_minute', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']]
 y = train_df[['pm2.5_next_hour']]
 
 
 #%%
 
-test_X = test_df[column]
+test_X = test_df[['month', 'day', 'hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']]
 #test_X = test_df[['month', 'day', 'weekday', 'hour_minute', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'speed']]
 test_y = test_df[['pm2.5_next_hour']]
 
