@@ -7,12 +7,13 @@ Created on Wed Aug  7 23:44:39 2019
 """
 import requests as rq
 from bs4 import BeautifulSoup
+import numpy as np
 
 station = str(467410)
+pre_url = 'https://e-service.cwb.gov.tw/HistoryDataQuery/DayDataController.do?command=viewMain&station=' + station + '&stname=&datepicker='
 #%%
-def crawler(month, date):
-    # create url
-    
+def rain_wind_crawler(month, date):
+    # create url    
     mon = ''
     if month < 10:
         mon = '0' + str(month)
@@ -27,7 +28,7 @@ def crawler(month, date):
     datepicker = '2019-' + mon + '-' + day
     
     # url: https://e-service.cwb.gov.tw/HistoryDataQuery/DayDataController.do?command=viewMain&station=467410&stname=&datepicker=2019-08-07
-    url = 'https://e-service.cwb.gov.tw/HistoryDataQuery/DayDataController.do?command=viewMain&station=' + station + '&stname=&datepicker=' + datepicker
+    url = pre_url + datepicker
     # print(url)
     
     # request
@@ -44,27 +45,34 @@ def crawler(month, date):
     trs = body.find_all('tr')
     trs = trs[3:]
     
-    winddata = []
+    data = []
     hour = 0
     # extract wind speed and wind direction
     for tds in trs:
         sd = {}
         td = tds.find_all('td')
-#        print(td[0].string)
-#        print(td[6].string)
-#        print(td[7].string)
-#        print('---')
-#        if td[7].string == "V\xa0":
-#            td[7].string = "0"
+        
+        if td[7].string == "V\xa0":            
+            sd['wd'] = np.nan
+        else:            
+            sd['wd'] = float(td[7].string)
+        
+        if td[10].string == "T\xa0":
+            sd['precp'] = float(0.05)
+        else:
+            sd['precp'] = float(td[10].string)
+            
         sd['month'] = month
         sd['day'] = date
         sd['hour'] = hour
-        sd['speed'] = float(td[6].string)
-#        sd.append(int(td[7].string))
-        winddata.append(sd)
+        sd['ws'] = float(td[6].string)        
+        
+        data.append(sd)
         hour += 1
     
     # turn the list to dataframe
     #df = pd.DataFrame(data=winddata, columns=title)
     
-    return winddata
+    return data
+  
+    

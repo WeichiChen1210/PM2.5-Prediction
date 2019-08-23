@@ -13,9 +13,6 @@ import json
 import pytz
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-from sklearn import linear_model, metrics, model_selection
-from scipy import stats
 
 def get_data_by_pos(pos):
     r = requests.get(f'http://140.116.82.93:6800/campus/display/{ pos }')
@@ -71,8 +68,8 @@ def get_all_data():
       value['date'] = taiwan_aware
     return data
 
-#%% get wind speed and direction data without lost days
-wind_data_list = []
+#%% get wind speed, direction and precipitation data
+data_list = []
 start = t.time()
 
 for month in range(6, 9):
@@ -80,12 +77,12 @@ for month in range(6, 9):
     if month == 6:
         max_day = 31
     if month == 8:
-        max_day = 15
+        max_day = 22
     month_str = str(month)
     for day in range(1, max_day):
-        wind_day = weather.crawler(month, day)
-        for hour in wind_day:
-            wind_data_list.append(hour)
+        data = weather.rain_wind_crawler(month, day)
+        for hour in data:
+            data_list.append(hour)
 
     print("Finish "+ str(month))
 
@@ -93,16 +90,25 @@ end = t.time()
 print(end-start)
 
 # rename colomn names
-title = ['month', 'day', 'hour', 'speed']
-df_wind = pd.DataFrame(data=wind_data_list, columns=title)
-#%% save original data
-df_wind.to_csv('complete_wind.csv')
+title = ['month', 'day', 'hour', 'ws']
+df_wspd = pd.DataFrame(data=data_list, columns=title)
+title = ['month', 'day', 'hour', 'wd']
+df_wdir = pd.DataFrame(data=data_list, columns=title)
+title = ['month', 'day', 'hour', 'precp']
+df_precp = pd.DataFrame(data=data_list, columns=title)
 
-#%%
-df_wind = pd.read_csv('complete_wind.csv')
+#%% save original data
+df_wspd.to_csv('complete_wind_speed.csv')
+df_wdir.to_csv('complete_wind_direction.csv')
+df_precp.to_csv('complete_precp.csv')
+
+#%% read from csv files
+df_wspd = pd.read_csv('complete_wind_speed.csv', index_col=0)
+df_wdir = pd.read_csv('complete_wind_direction.csv', index_col=0)
+df_precp = pd.read_csv('complete_precp.csv', index_col=0)
 #%%
 # Input time
-time_interval = ['2019 06 01', '2019 08 15']
+time_interval = ['2019 06 01', '2019 08 22']
 taipei_tz = pytz.timezone('Asia/Taipei')
 
 # Set time
@@ -131,7 +137,6 @@ df5['day'] = df5['date'].apply(lambda x: x.day)
 df5['hour'] = df5['date'].apply(lambda x: x.hour)
 df5 = df5[column]
 
-
 #%% Evaluate mean values for each hour
 df5mean = df5.groupby(['month', 'day', 'hour']).mean()
 df5mean.reset_index(inplace=True)
@@ -139,8 +144,11 @@ df5mean.reset_index(inplace=True)
 #%%
 df5mean.to_csv('pos5.csv')
 
+#%%
+df5mean = pd.read_csv('pos5.csv', index_col=0)
+
 #%% Create a new dataframe with complete hours
-num = (30 + 31 + 14) * 24
+num = (30 + 31 + 21) * 24
 # cols = ['month', 'day', 'weekday', 'hour', 'hour_minute', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity']
 cols = ['month', 'day', 'hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity']
 complete_5 = pd.DataFrame(columns = cols, index=range(0, num))
@@ -177,6 +185,23 @@ for index, rows in df5mean.iterrows():
 
 end = t.time()
 print(end-start)
+
+#%% (no interpolation) drop time cols and concate with complete_5
+drop_wspd = df_wspd.drop(['month', 'day', 'hour'], axis=1)
+drop_wdir = df_wdir.drop(['month', 'day', 'hour'], axis=1)
+drop_precp = df_precp.drop(['month', 'day', 'hour'], axis=1)
+
+complete_5 = pd.concat([complete_5, drop_wspd], axis=1, sort=False)
+complete_5 = pd.concat([complete_5, drop_wdir], axis=1, sort=False)
+complete_5 = pd.concat([complete_5, drop_precp], axis=1, sort=False)
+
+#%% (no interpolation) drop nan and change data type
+complete_5 = complete_5.dropna()
+complete_5 = complete_5.reset_index(drop=True)
+complete_5 = complete_5.astype({'month': int, 'day': int, 'hour': int, 'pm1.0': float, 'pm2.5': float, 'pm10.0': float, 'temp': float, 'humidity': float})
+
+# jump to the last section-save file
+
 #%% for interpolation
 complete_5 = complete_5.dropna()
 complete_5 = complete_5.reset_index()
@@ -199,10 +224,12 @@ for i in range(139, 209):
     if hour > 23:
         hour = 0
         day += 1
-
-complete_5.iloc[432:434, 1] = 19
+complete_5.iloc[432:448, 0] = 6
+complete_5.iloc[432:448, 1] = 19
 complete_5.iloc[432, 2] = 0
 complete_5.iloc[433, 2] = 1
+complete_5.iloc[436, 2] = 4
+complete_5.iloc[447, 2] = 15
 
 #%% interpolation
 complete_5 = complete_5.interpolate()
@@ -213,14 +240,19 @@ decimals = pd.Series([3, 3, 3, 3, 3], index=['pm1.0', 'pm2.5', 'pm10.0', 'temp',
 complete_5 = complete_5.round(decimals)
 
 #%%
-df_wind = df_wind.drop(['month', 'day', 'hour'], axis=1)
-df_wind = df_wind.round(3)
+df_wspd = df_wspd.drop(['month', 'day', 'hour'], axis=1)
+df_wspd = df_wspd.round(3)
 # concate the two frames
-complete_5 = pd.concat([complete_5, df_wind], axis=1, sort=False)
+complete_5 = pd.concat([complete_5, df_wspd], axis=1, sort=False)
 
-#%%
+df_precp = df_precp.drop(['month', 'day', 'hour'], axis=1)
+df_precp = df_precp.round(3)
+# concate the two frames
+complete_5 = pd.concat([complete_5, df_precp], axis=1, sort=False)
+
+
+#%% save the file
 complete_5.to_csv('complete_data_5.csv')
-
 
 
 
