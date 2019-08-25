@@ -77,7 +77,7 @@ for month in range(6, 9):
     if month == 6:
         max_day = 31
     if month == 8:
-        max_day = 22
+        max_day = 24
     month_str = str(month)
     for day in range(1, max_day):
         data = weather.rain_wind_crawler(month, day)
@@ -108,7 +108,7 @@ df_wdir = pd.read_csv('complete_wind_direction.csv', index_col=0)
 df_precp = pd.read_csv('complete_precp.csv', index_col=0)
 #%%
 # Input time
-time_interval = ['2019 06 01', '2019 08 22']
+time_interval = ['2019 06 01', '2019 08 24']
 taipei_tz = pytz.timezone('Asia/Taipei')
 
 # Set time
@@ -148,7 +148,7 @@ df5mean.to_csv('pos5.csv')
 df5mean = pd.read_csv('pos5.csv', index_col=0)
 
 #%% Create a new dataframe with complete hours
-num = (30 + 31 + 21) * 24
+num = (30 + 31 + 23) * 24
 # cols = ['month', 'day', 'weekday', 'hour', 'hour_minute', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity']
 cols = ['month', 'day', 'hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity']
 complete_5 = pd.DataFrame(columns = cols, index=range(0, num))

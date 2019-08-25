@@ -45,16 +45,17 @@ plt.figure(figsize=(12, 7))
 plt.scatter(df5['date'], df5['pm2.5'])
 
 #%% shift and append previous 1~5 hours data as columns next to original dataframe
-titles = ['hour', 'pm1.0', 'pm2.5', 'pm10.0', 'temp', 'humidity', 'ws', 'wd', 'precp']
-for i in range(1, 6):
+titles = ['pm2.5', 'temp', 'humidity', 'ws', 'wd', 'precp']
+for i in range(1, 7):
     for item in titles:
         title = item + '_' + str(i)
         df5[title] = df5[item].shift(periods=i)
 
+#df5['pm2.5_shift_1'] = df5['pm2.5'].shift(periods=-1)
 #%% drop nan, date column and reset index
 df5 = df5.dropna(axis=0)
 date = df5['date']
-df5 = df5.drop(['date'], axis=1) 
+df5 = df5.drop(['date', 'month', 'day', 'hour'], axis=1) 
 df5 = df5.reset_index(drop=True)
 
 #%% Normalization
@@ -62,23 +63,36 @@ std = df5.std()
 mean = df5.mean()
 df5 = (df5 - mean) / std
 
+#%% shift pm2.5 data to get the next x hour
+shift_amount = 2
+df5['pm2.5_shift_1'] = df5['pm2.5'].shift(-shift_amount)
+df5 = df5.dropna(axis=0)
+date = date.drop(date.index[date.index.size-shift_amount:date.index.size])
+df5 = df5.reset_index(drop=True)
+pm_shift_1 = df5['pm2.5_shift_1']
+df5 = df5.drop(['pm2.5_shift_1'], axis=1)
+
 #%% split pm2.5 data as y and remain as X
-y = df5['pm2.5']
+#pm_shift_1 = df5['pm2.5_shift_1']
+#df5 = df5.drop(['pm2.5_shift_1'], axis=1) 
+y = pm_shift_1.copy()
+original_pm25 = df5['pm2.5']
 X = df5.drop(['pm2.5'], axis=1)
+
 #%%
 #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, random_state=0)
 #print(X_train.shape, y_train.shape)
 #print(X_test.shape, y_test.shape)
 
 #%% Divide training set and test set
-four_fifth_len = int(len(df5)*0.85)
+bound = int(len(df5)*0.85)
 
-X_train = X[:four_fifth_len]
-X_test = X[four_fifth_len:]
-y_train = y[:four_fifth_len]
-y_test = y[four_fifth_len:]
-time = date[four_fifth_len:]
-
+X_train = X[:bound]
+X_test = X[bound:]
+y_train = y[:bound]
+y_test = y[bound:]
+time = date[bound:]
+original_pm25 = original_pm25[bound:]
 #%% Fit the model
 model = linear_model.LinearRegression(normalize=True)
 model.fit(X_train, y_train)
@@ -105,13 +119,14 @@ print('Test MSE:\t %s' % test_mse)
 #%% denormalization
 predict_y_plot = predict_y * std['pm2.5'] + mean['pm2.5']
 y_test_plot = y_test * std['pm2.5'] + mean['pm2.5']
+original_pm25_plot = original_pm25 * std['pm2.5'] + mean['pm2.5']
 
 #%%
 # Add explicitly converter
 pd.plotting.register_matplotlib_converters()
 # Plt
 plt.figure(figsize=(12, 7))
-plt.plot(time, y_test_plot, label='actual values')
+plt.plot(time, original_pm25_plot, label='actual values')
 plt.plot(time, predict_y_plot, label='predict values')
 plt.legend()
 fig = plt.gcf()
