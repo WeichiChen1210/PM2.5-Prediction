@@ -44,9 +44,9 @@ pd.plotting.register_matplotlib_converters()
 plt.figure(figsize=(12, 7))
 plt.scatter(df5['date'], df5['pm2.5'])
 
-#%% shift and append previous 1~5 hours data as columns next to original dataframe
+#%% shift and append previous 1~5 hours data as columns next to original dataframe, maybe 10 better
 titles = ['pm2.5', 'temp', 'humidity', 'ws', 'wd', 'precp']
-for i in range(1, 7):
+for i in range(1, 8):
     for item in titles:
         title = item + '_' + str(i)
         df5[title] = df5[item].shift(periods=i)
@@ -54,30 +54,32 @@ for i in range(1, 7):
 #df5['pm2.5_shift_1'] = df5['pm2.5'].shift(periods=-1)
 #%% drop nan, date column and reset index
 df5 = df5.dropna(axis=0)
-date = df5['date']
-df5 = df5.drop(['date', 'month', 'day', 'hour'], axis=1) 
 df5 = df5.reset_index(drop=True)
+date = df5['date']
+df5 = df5.drop(['date', 'pm1.0', 'pm10.0', 'month', 'day', 'hour'], axis=1) 
 
 #%% Normalization
 std = df5.std()
 mean = df5.mean()
 df5 = (df5 - mean) / std
-
+df5['date'] = date
 #%% shift pm2.5 data to get the next x hour
-shift_amount = 2
+shift_amount = 1
 df5['pm2.5_shift_1'] = df5['pm2.5'].shift(-shift_amount)
+df5['time_shift_1'] = df5['date'].shift(-shift_amount)
+#%%
 df5 = df5.dropna(axis=0)
-date = date.drop(date.index[date.index.size-shift_amount:date.index.size])
+#date = date.drop(date.index[date.index.size-shift_amount:date.index.size])
 df5 = df5.reset_index(drop=True)
+#%%
 pm_shift_1 = df5['pm2.5_shift_1']
-df5 = df5.drop(['pm2.5_shift_1'], axis=1)
-
+time_shift_1 = df5['time_shift_1']
+date = df5['date']
+df5 = df5.drop(['date', 'pm2.5_shift_1', 'time_shift_1'], axis=1) 
 #%% split pm2.5 data as y and remain as X
-#pm_shift_1 = df5['pm2.5_shift_1']
-#df5 = df5.drop(['pm2.5_shift_1'], axis=1) 
 y = pm_shift_1.copy()
-original_pm25 = df5['pm2.5']
-X = df5.drop(['pm2.5'], axis=1)
+original_pm25 = pm_shift_1.copy()
+X = df5.copy()
 
 #%%
 #X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=.25, random_state=0)
@@ -91,7 +93,8 @@ X_train = X[:bound]
 X_test = X[bound:]
 y_train = y[:bound]
 y_test = y[bound:]
-time = date[bound:]
+date = date[bound:]
+time_shift_1 = time_shift_1[bound:]
 original_pm25 = original_pm25[bound:]
 #%% Fit the model
 model = linear_model.LinearRegression(normalize=True)
@@ -126,8 +129,8 @@ original_pm25_plot = original_pm25 * std['pm2.5'] + mean['pm2.5']
 pd.plotting.register_matplotlib_converters()
 # Plt
 plt.figure(figsize=(12, 7))
-plt.plot(time, original_pm25_plot, label='actual values')
-plt.plot(time, predict_y_plot, label='predict values')
+plt.plot(time_shift_1, original_pm25_plot, label='actual values')
+plt.plot(time_shift_1, predict_y_plot, label='predict values')
 plt.legend()
 fig = plt.gcf()
 plt.show()
